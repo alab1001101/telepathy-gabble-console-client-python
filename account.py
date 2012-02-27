@@ -9,8 +9,12 @@ GObject.threads_init()
 from gi.repository import TelepathyGLib as Tp
 
 import cmd
+import inspect
 
-class Lala(cmd.Cmd):
+def dump(what):
+    pprint.pprint(inspect.getmembers(what))
+
+class AccountCmd(cmd.Cmd):
     """Simple command processor example."""
     
     prompt = 'account> '
@@ -61,7 +65,7 @@ class Lala(cmd.Cmd):
 	self.restart = False
         return True
     
-    #def postloop(self):
+    #def postmainLoop(self):
     #    print
 
 def printAccount(account):
@@ -82,38 +86,33 @@ def getAccountNames():
 def getAccounts():
     return manager.get_valid_accounts()
 
-def account_presence_cb(account, result, args):
+def account_presence_cb(account, result, data):
     account.request_presence_finish(result)
     reloop()
 
 def reloop():
-    lala.cmdloop()
-    if False == lala.restart:
-        loop.quit()
+    accountLoop.cmdloop()
+    if False == accountLoop.restart:
+        mainLoop.quit()
 
-def manager_prepared_cb(manager, result, loop):
+def manager_prepared_cb(manager, result, data):
     manager.prepare_finish(result)
-
     reloop()
 
-def manager_prepare(loop):
+def manager_prepare():
     global manager
 
-    if manager:
-        del manager
-	
     manager = Tp.AccountManager.dup()
 
     factory = manager.get_factory()
     factory.add_account_features([Tp.Account.get_feature_quark_connection()])
 
-    manager.prepare_async(None, manager_prepared_cb, loop)
+    manager.prepare_async(None, manager_prepared_cb, None)
 
 if __name__ == '__main__':
     Tp.debug_set_flags(os.getenv('EXAMPLE_DEBUG', ''))
 
-    loop = GObject.MainLoop()
-    lala = Lala()
-    manager = None
-    manager_prepare(loop)
-    loop.run()
+    mainLoop = GObject.MainLoop()
+    accountLoop = AccountCmd()
+    manager_prepare()
+    mainLoop.run()
