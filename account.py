@@ -12,7 +12,10 @@ import cmd
 import inspect
 
 def dump(what):
-    pprint.pprint(inspect.getmembers(what))
+    pprint.pprint(inspect.getmembers(what), indent=2)
+
+def dumpclass(which):
+    pprint.pprint(dir(which), indent=2)
 
 class AccountCmd(cmd.Cmd):
     """Simple command processor example."""
@@ -24,11 +27,11 @@ class AccountCmd(cmd.Cmd):
     # 'AVAILABLE', 'AWAY', 'BUSY', 'ERROR', 'EXTENDED_AWAY', 'HIDDEN', 'OFFLINE', 'UNKNOWN', 'UNSET'
 
     presenceTypes = { 'available': Tp.ConnectionPresenceType.AVAILABLE
-		    , 'away':      Tp.ConnectionPresenceType.AWAY
-		    , 'busy':      Tp.ConnectionPresenceType.BUSY
-		    , 'hidden':    Tp.ConnectionPresenceType.HIDDEN
-		    , 'offline':   Tp.ConnectionPresenceType.OFFLINE
-		    }
+            , 'away':      Tp.ConnectionPresenceType.AWAY
+            , 'busy':      Tp.ConnectionPresenceType.BUSY
+            , 'hidden':    Tp.ConnectionPresenceType.HIDDEN
+            , 'offline':   Tp.ConnectionPresenceType.OFFLINE
+            }
 
     def do_list(self, line):
         """list accounts"""
@@ -36,33 +39,34 @@ class AccountCmd(cmd.Cmd):
             printAccount(account)
 
     def do_presence(self, line):
-	args = (line.split(" ") + ["","",""])
-	account = getAccountByName(args[0])
-	if account is not None and len(args) > 1:
+        args = (line.split(" ") + ["","",""])
+        account = getAccountByName(args[0])
+
+        if account is not None:
+            self.restart = True
             account.request_presence_async(self.presenceTypes[args[1]], args[1], args[2], account_presence_cb, None)
-	    self.restart = True
-	    return True
+            return True
 
     def complete_presence(self, text, line, begidx, endidx):
-	count = len(line.split(" "))
+        count = len(line.split(" "))
 
-	if count == 2:
-	    completions = getAccountNames()
-	elif count == 3:
-	    completions = self.presenceTypes.keys()
+        if count == 2:
+            completions = getAccountNames()
+        elif count == 3:
+            completions = self.presenceTypes.keys()
 
         if text:
-	    completions = [ f for f in completions if f.startswith(text) ]
+            completions = [ f for f in completions if f.startswith(text) ]
 
         return completions
 
     def do_quit(self, line):
-	self.restart = False
+        self.restart = False
         return True
     
     def do_EOF(self, line):
-	print
-	self.restart = False
+        print
+        self.restart = False
         return True
     
     #def postmainLoop(self):
@@ -74,7 +78,7 @@ def printAccount(account):
 def getAccountByName(name):
     for account in getAccounts():
         if name == account.get_normalized_name():
-	    return account
+            return account
     return None
 
 def getAccountNames():
@@ -88,6 +92,11 @@ def getAccounts():
 
 def account_presence_cb(account, result, data):
     account.request_presence_finish(result)
+    account.connect("presence-changed", current_presence_cb)
+    return True
+
+def current_presence_cb(account, statusType, status, message):
+    printAccount(account)
     reloop()
 
 def reloop():
@@ -97,7 +106,7 @@ def reloop():
 
 def manager_prepared_cb(manager, result, data):
     manager.prepare_finish(result)
-    reloop()
+    accountLoop.cmdloop()
 
 def manager_prepare():
     global manager
